@@ -43,8 +43,8 @@ The payload from a client to the server must be formatted as follows:
 
 ```json
 {
-‘request’: <request>,
-‘content’: <content>
+'request': <request>,
+'content': <content>
 }
 
 ```
@@ -73,10 +73,10 @@ format:
 
 ```json
 {
-‘timestamp’: <timestamp>,
-‘sender’: <username>,
-‘response’: <response>,
-‘content’: <content>
+'timestamp': <timestamp>,
+'sender': <username>,
+'response': <response>,
+'content': <content>
 }
 ```
 
