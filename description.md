@@ -41,10 +41,10 @@ use.
 
 The payload from a client to the server must be formatted as follows:
 
-```json
+```
 {
-'request': <request>,
-'content': <content>
+    'request': <request>,
+    'content': <content>
 }
 
 ```
@@ -53,6 +53,8 @@ The request describes what you are requesting of the server. The content is the 
 
 At least, the following requests, with the associated arguments must be supported:
 
+| Command | Description |
+|---------|-------------|
 | login <username> | log in with the given username |
 | logout | log out |
 | msg <message> | send message |
@@ -71,12 +73,12 @@ At least, the following requests, with the associated arguments must be supporte
 The server should handle all requests and send responses back to the client on the following
 format:
 
-```json
+```
 {
-'timestamp': <timestamp>,
-'sender': <username>,
-'response': <response>,
-'content': <content>
+    'timestamp': <timestamp>,
+    'sender': <username>,
+    'response': <response>,
+    'content': <content>
 }
 ```
 
