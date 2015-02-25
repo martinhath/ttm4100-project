@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import socket
 from sys import argv
+from json import loads
 
 def print_usage():
     print('Usage: python client.py <host> <port>')
@@ -15,6 +16,10 @@ def client():
     f = open('testdata.json')
     json = f.read()
     sock.send(str(json).encode('utf-8'))
+
+    res = sock.recv(1024)
+    print(res.decode('utf-8'))
+
 
 if __name__ == '__main__':
     if len(argv) < 3:

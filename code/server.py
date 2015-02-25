@@ -13,11 +13,13 @@ class TCPHandler(socketserver.BaseRequestHandler):
         raw = data.decode('utf-8')
         try:
             json = loads(raw)
-            request = Request(json['request'], json['content'])
-            res = self.server.chatserver.handle_command(request)
-            self.request.send(res.encode('utf-8'))
         except ValueError:
             self.request.send('400 JSON malformed.'.encode('utf-8'))
+            return
+        request = Request(json['request'], json['content'])
+        res = self.server.chatserver.handle_command(request)
+        jsonres = to_json(res.__dict__)
+        self.request.send(jsonres.encode('utf-8'))
 
 
 class KTNServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -41,7 +43,7 @@ class ChatServer:
 
     def handle_command(self, req):
         res = Response()
-        res.timestamp = strftime('%H:%M', time())
+        res.timestamp = strftime('%H:%M')
 
         res.sender = 'Martin'
 

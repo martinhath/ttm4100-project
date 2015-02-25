@@ -1,4 +1,4 @@
-
+from json import loads, dumps
 
 class User:
 
@@ -22,6 +22,7 @@ class Response:
         self.response = response
         self.content = content
 
+
     def __str__(self):
         return "{} <{}> [{}]: {}".format(self.timestamp, self.sender,
                 self.response, self.content)
@@ -34,4 +35,12 @@ class Request:
 
     def __str__(self):
         return "{}: {}".format(self.request, self.response)
+
+
+''' 
+Vi vil ikke ha 'null' som 'feilverdi', men '"None"',
+altså json strengen med ordet None.
+'''
+def to_json(obj):
+    return (dumps(obj)).replace('null', '"None"')
 
