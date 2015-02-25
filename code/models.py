@@ -6,12 +6,18 @@ class User:
         self.username = username
         self.password = password
 
+    def __str__(self):
+        return self.username
+
 
 class Message:
 
     def __init__(self, user, message):
         self.user = user
         self.message = message
+
+    def __str__(self):
+        return '{}: {}'.format(self.user, self.message)
 
 
 class Response:

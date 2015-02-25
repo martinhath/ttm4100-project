@@ -8,18 +8,24 @@ from models import *
 
 
 class TCPHandler(socketserver.BaseRequestHandler):
+
+    user = None
+
     def handle(self):
-        data = self.request.recv(1024)
-        raw = data.decode('utf-8')
-        try:
-            json = loads(raw)
-        except ValueError:
-            self.request.send('400 JSON malformed.'.encode('utf-8'))
-            return
-        request = Request(json['request'], json['content'])
-        res = self.server.chatserver.handle_command(request)
-        jsonres = to_json(res.__dict__)
-        self.request.send(jsonres.encode('utf-8'))
+        while True:
+            data = self.request.recv(1024)
+            print('Server har fått data')
+            raw = data.decode('utf-8')
+            try:
+                json = loads(raw)
+            except ValueError:
+                self.request.send('400 JSON malformed.'.encode('utf-8'))
+                return
+            request = Request(json['request'], json['content'])
+            res = self.server.chatserver.handle_command(request)
+            jsonres = to_json(res.__dict__)
+            self.request.send(jsonres.encode('utf-8'))
+            print('Server har sendt data.')
 
 
 class KTNServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -29,6 +35,9 @@ class KTNServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     def __init__(self, server_address, RequestHandlerClass):
         socketserver.TCPServer.__init__(self, server_address, RequestHandlerClass)
 
+
+def get_help():
+    pass
 
 
 class ChatServer:
@@ -49,11 +58,21 @@ class ChatServer:
 
         if req.request == 'msg':
             msg = Message(None, req.content)
+            print(msg)
             self.messages.append(msg)
             res.response = 'info'
-            #broadcast
+
+        elif req.request == 'names':
+            res.response = 'info'
+            res.content = ', '.join(map(str, users))
+
+        elif req.request == 'help':
+            res.response = 'info'
+            res.content = get_help()
+
         else:
-             pass
+             res.response = 'error'
+             res.content = 'Not supported command. See `help`.'
         return res
 
 
