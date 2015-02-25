@@ -2,6 +2,7 @@
 from sys import argv, version_info
 import socketserver
 from json import loads
+from time import strftime, time
 
 from models import *
 
@@ -12,9 +13,9 @@ class TCPHandler(socketserver.BaseRequestHandler):
         raw = data.decode('utf-8')
         try:
             json = loads(raw)
-            request = json['request']
-            content = json['content']
-            self.server.chatserver.handle_command(request, content)
+            request = Request(json['request'], json['content'])
+            res = self.server.chatserver.handle_command(request)
+            self.request.send(res.encode('utf-8'))
         except ValueError:
             self.request.send('400 JSON malformed.'.encode('utf-8'))
 
@@ -30,23 +31,28 @@ class KTNServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
 class ChatServer:
 
+    messages = []
+    users = []
+
     def __init__(self, port, host):
         server = KTNServer((host, port), TCPHandler)
         server.chatserver = self
         server.serve_forever()
 
-        self.messages = []
-        self.users = []
+    def handle_command(self, req):
+        res = Response()
+        res.timestamp = strftime('%H:%M', time())
 
-    def handle_command(self, req, content):
-        print('req:', req)
-        print('content:', content)
-        if req == 'msg':
-            msg = Message(None, content)
-            mesasges.append(msg)
+        res.sender = 'Martin'
+
+        if req.request == 'msg':
+            msg = Message(None, req.content)
+            self.messages.append(msg)
+            res.response = 'info'
             #broadcast
         else:
              pass
+        return res
 
 
 
@@ -54,7 +60,7 @@ class ChatServer:
 if __name__ == '__main__':
     if len(argv) < 2:
         print('Usage: python server.py <port>')
-    elif version_info < (3, 0): 
+    elif version_info < (3, 0):
         print('Python 3.0 or higher required')
     else:
         port = int(argv[1])
