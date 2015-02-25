@@ -62,6 +62,7 @@ class ChatServer:
         elif req.request == 'help':
             res.response = 'info'
             res.content = get_help()
+            return res, user
 
         elif not user:
             """
