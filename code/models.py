@@ -40,7 +40,7 @@ class Request:
         self.content = content
 
     def __str__(self):
-        return "{}: {}".format(self.request, self.response)
+        return "{}: {}".format(self.request, self.content)
 
 
 ''' 

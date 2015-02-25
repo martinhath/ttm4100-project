@@ -9,12 +9,10 @@ from models import *
 
 class TCPHandler(socketserver.BaseRequestHandler):
 
-    user = None
-
     def handle(self):
+        user = None
         while True:
             data = self.request.recv(1024)
-            print('Server har fått data')
             raw = data.decode('utf-8')
             try:
                 json = loads(raw)
@@ -22,10 +20,11 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 self.request.send('400 JSON malformed.'.encode('utf-8'))
                 return
             request = Request(json['request'], json['content'])
-            res = self.server.chatserver.handle_command(request)
+            res, usr = self.server.chatserver.handle_command(request, user)
+            if usr:
+                user = usr
             jsonres = to_json(res.__dict__)
             self.request.send(jsonres.encode('utf-8'))
-            print('Server har sendt data.')
 
 
 class KTNServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -50,30 +49,47 @@ class ChatServer:
         server.chatserver = self
         server.serve_forever()
 
-    def handle_command(self, req):
+    def handle_command(self, req, user=None):
         res = Response()
         res.timestamp = strftime('%H:%M')
 
-        res.sender = 'Martin'
+        if req.request == 'login':
+            if user:
+                users.remove(user)
+            user = User(req.content, '')
+            self.users.append(user)
 
-        if req.request == 'msg':
-            msg = Message(None, req.content)
+        elif req.request == 'help':
+            res.response = 'info'
+            res.content = get_help()
+
+        elif not user:
+            """
+            litt hacky å ha denne, men tanken er at vi ikke trenger å
+            sjekke om man er logget inn før etter vi har sjekket
+            om kommandoen er login eller help, siden de ikke 
+            krever at man er logget inn.
+            """
+            res.response = 'error'
+            res.content = 'Not supported command. See `help`.'
+            return res, None
+
+        elif req.request == 'msg':
+            msg = Message(user, req.content)
             print(msg)
             self.messages.append(msg)
             res.response = 'info'
 
         elif req.request == 'names':
             res.response = 'info'
-            res.content = ', '.join(map(str, users))
-
-        elif req.request == 'help':
-            res.response = 'info'
-            res.content = get_help()
+            res.content = ', '.join(map(str, self.users))
 
         else:
              res.response = 'error'
              res.content = 'Not supported command. See `help`.'
-        return res
+
+        res.sender = user.username
+        return res, user
 
 
 

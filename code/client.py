@@ -17,19 +17,18 @@ class Client:
             data = input()
             if data.strip() == '':
                 continue
-            print('=== DATA: <{}> ==='.format(data))
             i = data.find(' ')
             req = Request()
-            req.request = data[:i]
-            req.content = data[i+1:]
+            if i == -1:
+                req.request = data
+            else:
+                req.request = data[:i]
+                req.content = data[i+1:]
+
+            print(req)
 
             self.sock.send(to_json(req.__dict__).encode('utf-8'))
-            print('Klient har sendt data.')
             res = self.sock.recv(1024)
-            if res == b'':
-                print('terminated?')
-            else:
-                print('Klient har fått data.')
 
             print(res.decode('utf-8'))
 
