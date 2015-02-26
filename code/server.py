@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from sys import argv
+
 import socketserver
 from json import loads
 from time import strftime, time
@@ -9,8 +10,15 @@ from models import *
 
 class TCPHandler(socketserver.BaseRequestHandler):
 
+    # Når en klient avslutter, inneholder denne listen
+    # en ugyldig socket. Må fikses.
+    sockets = []
+
     def handle(self):
         user = None
+        if not self.request in self.sockets:
+            self.sockets.append(self.request)
+
         while True:
             data = self.request.recv(1024)
             raw = data.decode('utf-8')
@@ -19,12 +27,23 @@ class TCPHandler(socketserver.BaseRequestHandler):
             except ValueError:
                 self.request.send('400 JSON malformed.'.encode('utf-8'))
                 return
-            request = Request(json['request'], json['content'])
+            request = Request(**json)
             res, usr = self.server.chatserver.handle_command(request, user)
             if usr:
                 user = usr
-            jsonres = to_json(res.__dict__)
-            self.request.send(jsonres.encode('utf-8'))
+
+            json = to_json(res.__dict__)
+            if res.response == 'message':
+                self.send_to_all(json)
+            else:
+                self.send(json, self.request)
+
+    def send(self, res, socket):
+        socket.send(res.encode('utf-8'))
+
+    def send_to_all(self, res):
+        for s in self.sockets:
+            s.send(res.encode('utf-8'))
 
 
 class KTNServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -54,11 +73,14 @@ class ChatServer:
         res.timestamp = strftime('%H:%M')
 
         if req.request == 'login':
+            # Kanskje man ikke kan logge inn når
+            # man allerede er logget inn?
             if user:
-                users.remove(user)
+                self.users.remove(user)
             user = User(req.content, '')
             self.users.append(user)
-
+            res.response = 'info'
+            res.content = user.username
         elif req.request == 'help':
             res.response = 'info'
             res.content = get_help()
@@ -79,7 +101,8 @@ class ChatServer:
             msg = Message(user, req.content)
             print(msg)
             self.messages.append(msg)
-            res.response = 'info'
+            res.response = 'message'
+            res.content = msg.message
 
         elif req.request == 'names':
             res.response = 'info'
