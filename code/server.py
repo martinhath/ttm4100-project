@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from sys import argv, version_info
+from sys import argv
 import socketserver
 from json import loads
 from time import strftime, time
@@ -98,8 +98,6 @@ class ChatServer:
 if __name__ == '__main__':
     if len(argv) < 2:
         print('Usage: python server.py <port>')
-    elif version_info < (3, 0):
-        print('Python 3.0 or higher required')
     else:
         port = int(argv[1])
         host = '127.0.0.1'
