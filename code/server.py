@@ -80,7 +80,7 @@ class ChatServer:
             user = User(req.content, '')
             self.users.append(user)
             res.response = 'info'
-            res.content = user.username
+            res.content = 'logged in'
         elif req.request == 'help':
             res.response = 'info'
             res.content = get_help()

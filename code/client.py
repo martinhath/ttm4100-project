@@ -3,6 +3,7 @@ import socket
 from sys import argv, stdout
 from json import loads
 from time import sleep
+from time import strftime
 
 from threading import Thread
 
@@ -28,16 +29,19 @@ class Client:
             res_dict = loads(res.decode('utf-8'))
             res = Response(**res_dict)
 
-            #sender = res.sender
-
             if res.response == 'message':
+                if res.sender == sender:
+                    break
                 self.print_response(res)
             elif res.response == 'info':
-                self.print_response(res)
+                # self.print_response(res)
+                if res.content == 'logged in':
+                    sender = res.sender
             elif res.response == 'error':
                 pass
             elif res.response == 'history':
                 pass
+
 
     '''
     Her leser vi input fra brukeren, parser det,
@@ -46,7 +50,6 @@ class Client:
     def handle_gui(self):
         while True:
             data = input()
-            stdout.write('\r')
             if data.strip() == '':
                 continue
             i = data.find(' ')
@@ -67,14 +70,14 @@ class Client:
         network_thread.start()
         gui_thread.start()
 
-    def print_pre(self, sender):
-        if not sender:
-            stdout.write('not logged in.{:8}| '.format(' '))
-        else:
-            stdout.write('logged in as {:9}| '.format(sender))
+    def print_pre(self, username, time=strftime('%H:%M')):
+        if not username:
+            username = 'default'
+        stdout.write('\r[{:5}] {:14}| '.format(
+                time, username))
 
     def print_response(self, res):
-        print('[{:5}] {:14}| {}'.format(
+        print('\r[{:5}] {:14}| {}'.format(
                 res.timestamp, res.sender, res.content))
 
 
