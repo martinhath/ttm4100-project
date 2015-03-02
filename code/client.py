@@ -30,17 +30,21 @@ class Client:
             res = Response(**res_dict)
 
             if res.response == 'message':
-                if res.sender == sender:
-                    break
-                self.print_response(res)
+                if res.sender != sender:
+                    print('res.sender: {}'.format(res.sender))
+                    print('sender: {}'.format(sender))
+                    self.print_response(res)
+
             elif res.response == 'info':
-                # self.print_response(res)
                 if res.content == 'logged in':
                     sender = res.sender
+                self.print_response(res)
+
             elif res.response == 'error':
-                pass
+                self.print_response(res)
+
             elif res.response == 'history':
-                pass
+                self.print_response(res)
 
 
     '''

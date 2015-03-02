@@ -29,11 +29,11 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 return
             request = Request(**json)
             res, usr = self.server.chatserver.handle_command(request, user)
-            if usr:
-                user = usr
+            user = usr
 
             json = to_json(res.__dict__)
-            if res.response == 'message':
+
+            if res.broadcast:
                 self.send_to_all(json)
             else:
                 self.send(json, self.request)
@@ -43,7 +43,10 @@ class TCPHandler(socketserver.BaseRequestHandler):
 
     def send_to_all(self, res):
         for s in self.sockets:
-            s.send(res.encode('utf-8'))
+            try:
+                s.send(res.encode('utf-8'))
+            except Exception:
+                self.sockets.remove(s)
 
 
 class KTNServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -55,7 +58,7 @@ class KTNServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
 
 def get_help():
-    pass
+    return "HJELP!!"
 
 
 class ChatServer:
@@ -72,18 +75,22 @@ class ChatServer:
         res = Response()
         res.timestamp = strftime('%H:%M')
 
+
         if req.request == 'login':
-            # Kanskje man ikke kan logge inn når
-            # man allerede er logget inn?
             if user:
-                self.users.remove(user)
+                req.request = 'help'
+                return handle_command(self, req, user)
             user = User(req.content, '')
             self.users.append(user)
-            res.response = 'info'
-            res.content = 'logged in'
+            res.sender = 'Server'
+            res.response = 'message'
+            res.content = '{} logged in'.format(user.username)
+            res.broadcast = True
+
         elif req.request == 'help':
             res.response = 'info'
             res.content = get_help()
+            res.sender = 'Server'
             return res, user
 
         elif not user:
@@ -99,20 +106,30 @@ class ChatServer:
 
         elif req.request == 'msg':
             msg = Message(user, req.content)
-            print(msg)
             self.messages.append(msg)
             res.response = 'message'
             res.content = msg.message
+            res.sender = user.username
+            res.broadcast = True
 
         elif req.request == 'names':
             res.response = 'info'
             res.content = ', '.join(map(str, self.users))
+            res.sender = 'Server'
+
+        elif req.request == 'logout':
+            res.response = 'message'
+            res.sender = 'Server'
+            res.content = '{} loged out.'.format(user.username)
+            res.broadcast = True
+            user = None
+            return res, None
 
         else:
-             res.response = 'error'
-             res.content = 'Not supported command. See `help`.'
+            res.response = 'error'
+            res.sender = 'Server'
+            res.content = 'Not supported command. See `help`.'
 
-        res.sender = user.username
         return res, user
 
 

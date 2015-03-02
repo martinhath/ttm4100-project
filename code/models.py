@@ -27,6 +27,7 @@ class Response:
         self.sender = "None"
         self.response = "None"
         self.content = "None"
+        self.broadcase = False
         self.__dict__.update(entries)
 
     def __str__(self):
