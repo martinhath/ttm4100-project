@@ -12,9 +12,10 @@ class User:
 
 class Message:
 
-    def __init__(self, user, message):
+    def __init__(self, user, message, timestamp):
         self.user = user
         self.message = message
+        self.timestamp = timestamp
 
     def __str__(self):
         return '{}: {}'.format(self.user, self.message)

@@ -31,8 +31,6 @@ class Client:
 
             if res.response == 'message':
                 if res.sender != sender:
-                    print('res.sender: {}'.format(res.sender))
-                    print('sender: {}'.format(sender))
                     self.print_response(res)
 
             elif res.response == 'info':

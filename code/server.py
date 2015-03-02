@@ -28,7 +28,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 self.request.send('400 JSON malformed.'.encode('utf-8'))
                 return
             request = Request(**json)
-            res, usr = self.server.chatserver.handle_command(request, user)
+            res, usr = self.server.chatserver.handle_command(request, user, self.request)
             user = usr
 
             json = to_json(res.__dict__)
@@ -71,7 +71,18 @@ class ChatServer:
         server.chatserver = self
         server.serve_forever()
 
-    def handle_command(self, req, user=None):
+    def send_history(self, socket):
+        resp = Response()
+
+        for msg in self.messages:
+            resp.sender = msg.user.username
+            resp.timestamp = msg.timestamp
+            resp.content = msg.message
+
+            json = to_json(resp.__dict__)
+            socket.send(json.encode('utf-8'))
+
+    def handle_command(self, req, user=None, socket=None):
         res = Response()
         res.timestamp = strftime('%H:%M')
 
@@ -86,6 +97,8 @@ class ChatServer:
             res.response = 'message'
             res.content = '{} logged in'.format(user.username)
             res.broadcast = True
+
+            self.send_history(socket)
 
         elif req.request == 'help':
             res.response = 'info'
@@ -105,7 +118,7 @@ class ChatServer:
             return res, None
 
         elif req.request == 'msg':
-            msg = Message(user, req.content)
+            msg = Message(user, req.content, res.timestamp)
             self.messages.append(msg)
             res.response = 'message'
             res.content = msg.message
