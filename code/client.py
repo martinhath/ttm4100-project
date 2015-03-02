@@ -34,9 +34,12 @@ class Client:
                     self.print_response(res)
 
             elif res.response == 'info':
-                if res.content == 'logged in':
-                    sender = res.sender
-                self.print_response(res)
+                if res.sender == 'login':
+                    sender = res.content
+                elif res.sender == 'logout':
+                    sender = ''
+                else:
+                    self.print_response(res)
 
             elif res.response == 'error':
                 self.print_response(res)
@@ -54,17 +57,23 @@ class Client:
             data = input()
             if data.strip() == '':
                 continue
-            i = data.find(' ')
             req = Request()
-            if i == -1:
-                req.request = data
+
+            cmd = self.get_command(data)
+            if not cmd:
+                req.request = 'msg'
+                req.content = data
             else:
-                req.request = data[:i]
-                req.content = data[i+1:]
+                req.request = cmd
+                req.content = data[len(cmd)+2:]
 
             self.sock.send(to_json(req.__dict__).encode('utf-8'))
             sleep(0.1)
 
+    def get_command(self, string):
+        if string.startswith('/'):
+            return string.split()[0][1:]
+        return None
 
     def run(self):
         network_thread = Thread(target=self.handle_network)
@@ -72,11 +81,11 @@ class Client:
         network_thread.start()
         gui_thread.start()
 
-    def print_pre(self, username, time=strftime('%H:%M')):
+    def print_pre(self, username):
         if not username:
             username = 'default'
         stdout.write('\r[{:5}] {:14}| '.format(
-                time, username))
+                strftime('%H:%M'), username))
 
     def print_response(self, res):
         print('\r[{:5}] {:14}| {}'.format(

@@ -8,150 +8,184 @@ from time import strftime, time
 from models import *
 
 
-class TCPHandler(socketserver.BaseRequestHandler):
 
-    # Når en klient avslutter, inneholder denne listen
-    # en ugyldig socket. Må fikses.
-    sockets = []
-
-    def handle(self):
-        user = None
-        if not self.request in self.sockets:
-            self.sockets.append(self.request)
-
-        while True:
-            data = self.request.recv(1024)
-            raw = data.decode('utf-8')
-            try:
-                json = loads(raw)
-            except ValueError:
-                self.request.send('400 JSON malformed.'.encode('utf-8'))
-                return
-            request = Request(**json)
-            res, usr = self.server.chatserver.handle_command(request, user, self.request)
-            user = usr
-
-            json = to_json(res.__dict__)
-
-            if res.broadcast:
-                self.send_to_all(json)
-            else:
-                self.send(json, self.request)
-
-    def send(self, res, socket):
-        socket.send(res.encode('utf-8'))
-
-    def send_to_all(self, res):
-        for s in self.sockets:
-            try:
-                s.send(res.encode('utf-8'))
-            except Exception:
-                self.sockets.remove(s)
-
-
-class KTNServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+class ChatServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     daemon_threads = True
     allow_reuse_address = True
+
+    users = []
+    messages = []
+    sockets = []
 
     def __init__(self, server_address, RequestHandlerClass):
         socketserver.TCPServer.__init__(self, server_address, RequestHandlerClass)
 
 
-def get_help():
-    return "HJELP!!"
+class RequestHandler(socketserver.BaseRequestHandler):
 
+    def handle(self):
+        self.socket = self.request
+        self.user = None
+        self.server.sockets.append(self.socket)
 
-class ChatServer:
+        while True:
+            data = self.request.recv(1024).decode('utf-8')
+            try:
+                json = loads(data)
+            except ValueError:
+                return
+            request = Request(**json)
+            request.sender = self.user
+            '''
+            Vi har nå et Request-objekt.
+            Vi vil bruke ChatServer sin funksjon,
+            `handle` til å håndtere denne.`
+            '''
 
-    messages = []
-    users = []
+            if request.request == 'help':
+                self.send_help()
+                continue
 
-    def __init__(self, port, host):
-        server = KTNServer((host, port), TCPHandler)
-        server.chatserver = self
-        server.serve_forever()
+            if self.user:
+                self.handle_logged_in(request)
+            else:
+                self.handle_not_logged_in(request)
 
-    def send_history(self, socket):
-        resp = Response()
+    def handle_logged_in(self, request):
+        type = request.request
+        if type == 'msg':
+            self.msg(request)
+        elif type == 'logout':
+            self.logout()
+        elif type == 'names':
+            self.names()
+        # handle errors
+        elif type == 'login':
+            res = self.create_response(
+                    'Server',
+                    'error',
+                    'You need to log out in order to log in.')
+            self.send_response(res)
 
-        for msg in self.messages:
-            resp.sender = msg.user.username
-            resp.timestamp = msg.timestamp
-            resp.content = msg.message
+    def handle_not_logged_in(self, request):
+        type = request.request
+        if type == 'login':
+            self.login(request)
+        else:
+            self.send_login_error()
 
-            json = to_json(resp.__dict__)
-            socket.send(json.encode('utf-8'))
+    def login(self, request):
+        '''Håndterer inloggingslogikk'''
+        # svarer klienten
+        self.user = User(request.content)
+        res = self.create_response(
+                'login',
+                'info',
+                self.user.username)
+        self.send_response(res)
+        # forteller alle om login
+        res = self.create_response(
+                'Server',
+                'message',
+                'User {} logged in.'.format(self.user.username))
+        self.broadcast_response(res)
 
-    def handle_command(self, req, user=None, socket=None):
+        self.server.users.append(self.user)
+
+    def logout(self):
+        '''Håndterer utloggingslogikk'''
+        # svarer klienten
+        res = self.create_response(
+                'logout',
+                'info',
+                self.user.username)
+        self.send_response(res)
+        # forteller alle om logout
+        res = self.create_response(
+                'Server',
+                'message',
+                'User {} logged out.'.format(self.user.username))
+        self.server.users.remove(self.user)
+        self.user = None
+        self.broadcast_response(res)
+
+    def names(self):
+        '''Håndterer logikk rundt `names`'''
+        usernames = [u.username for u in self.server.users]
+        res = self.create_response(
+                'Server',
+                'info',
+                ", ".join(usernames))
+        self.send_response(res)
+            
+    def msg(self, request):
+        '''Håndterer logikk rundt å sende meldinger'''
+        res = self.create_response(self.user.username,
+                              'message',
+                              request.content)
+        self.broadcast_response(res)
+
+    def create_response(self, sender, response, content):
+        '''Lager et Response-objekt basert på parameterene'''
         res = Response()
         res.timestamp = strftime('%H:%M')
+        res.sender = sender
+        res.response = response
+        res.content = content
+        return res
 
+    def send_response(self, res):
+        '''Sender responsen'''
+        json = to_json(res.__dict__)
+        self.socket.send(json.encode('utf-8'))
 
-        if req.request == 'login':
-            if user:
-                req.request = 'help'
-                return handle_command(self, req, user)
-            user = User(req.content, '')
-            self.users.append(user)
-            res.sender = 'Server'
-            res.response = 'message'
-            res.content = '{} logged in'.format(user.username)
-            res.broadcast = True
+        self.log(res)
 
-            self.send_history(socket)
+    def broadcast_response(self, res):
+        '''Sender responsen til alle'''
+        json = to_json(res.__dict__)
+        for s in self.server.sockets:
+            try:
+                s.send(json.encode('utf-8'))
+            except Exception as e:
+                self.log(e)
+                self.server.sockets.remove(s)
 
-        elif req.request == 'help':
-            res.response = 'info'
-            res.content = get_help()
-            res.sender = 'Server'
-            return res, user
+        self.log(res)
 
-        elif not user:
-            """
-            litt hacky å ha denne, men tanken er at vi ikke trenger å
-            sjekke om man er logget inn før etter vi har sjekket
-            om kommandoen er login eller help, siden de ikke 
-            krever at man er logget inn.
-            """
-            res.response = 'error'
-            res.content = 'Not supported command. See `help`.'
-            return res, None
+    def send_help(self):
+        '''Lager og sender hjelpetekst'''
+        res = self.create_response('Server',
+                            'info',
+                            'Available commands are:\n' + 
+                            '\thelp\n' + 
+                            '\tlogin <username>\n' + 
+                            'If you are logged in:\n' + 
+                            '\tmsg <message>\n' + 
+                            '\tnames\n' + 
+                            '\tlogout')
+        self.send_response(res)
 
-        elif req.request == 'msg':
-            msg = Message(user, req.content, res.timestamp)
-            self.messages.append(msg)
-            res.response = 'message'
-            res.content = msg.message
-            res.sender = user.username
-            res.broadcast = True
+    def send_login_error(self):
+        '''Sender feil når bruker ikke er logget inn, men 
+           prøverå gjøre noe som krever innloggelse'''
+        res = self.create_response('Server',
+                            'error',
+                            'You must be logged in to do this.')
+        self.send_response(res)
 
-        elif req.request == 'names':
-            res.response = 'info'
-            res.content = ', '.join(map(str, self.users))
-            res.sender = 'Server'
-
-        elif req.request == 'logout':
-            res.response = 'message'
-            res.sender = 'Server'
-            res.content = '{} loged out.'.format(user.username)
-            res.broadcast = True
-            user = None
-            return res, None
-
-        else:
-            res.response = 'error'
-            res.sender = 'Server'
-            res.content = 'Not supported command. See `help`.'
-
-        return res, user
+    def log(self, s):
+        s = str(s).replace('\n', "\n")
+        print('[LOG]: ' + s[:80])
 
 
 
-# Hvis vi kjører filen med `python server.py`
+
 if __name__ == '__main__':
     if len(argv) < 2:
         print('Usage: python server.py <port>')
     else:
         port = int(argv[1])
         host = '127.0.0.1'
-        ChatServer(port, host)
+        server = ChatServer((host, port), RequestHandler)
+        server.serve_forever()

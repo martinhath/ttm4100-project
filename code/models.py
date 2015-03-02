@@ -2,9 +2,8 @@ from json import loads, dumps
 
 class User:
 
-    def __init__(self, username, password):
+    def __init__(self, username):
         self.username = username
-        self.password = password
 
     def __str__(self):
         return self.username
@@ -28,7 +27,6 @@ class Response:
         self.sender = "None"
         self.response = "None"
         self.content = "None"
-        self.broadcase = False
         self.__dict__.update(entries)
 
     def __str__(self):
