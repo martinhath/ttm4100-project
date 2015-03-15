@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import socket
-from sys import argv, stdout
+from sys import argv, stdout, exit
 from json import loads
 from time import sleep
 from time import strftime
@@ -12,6 +12,8 @@ from pprint import pprint
 from models import *
 
 class Client:
+
+    stop = False
     
     def __init__(self, host, port):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -22,9 +24,12 @@ class Client:
     '''
     def handle_network(self):
         sender = ''
-        while True:
+        while not self.stop:
             self.print_pre(sender)
             res = self.sock.recv(1024)
+            if res == b'':
+                self.stop = True
+                break
 
             res_dict = loads(res.decode('utf-8'))
             res = Response(**res_dict)
@@ -53,7 +58,7 @@ class Client:
     og sender en request til serveren.
     '''
     def handle_gui(self):
-        while True:
+        while not self.stop:
             data = input()
             if data.strip() == '':
                 continue
@@ -76,10 +81,10 @@ class Client:
         return None
 
     def run(self):
-        network_thread = Thread(target=self.handle_network)
-        gui_thread = Thread(target=self.handle_gui)
-        network_thread.start()
-        gui_thread.start()
+        self.network_thread = Thread(target=self.handle_network)
+        self.gui_thread = Thread(target=self.handle_gui)
+        self.network_thread.start()
+        self.gui_thread.start()
 
     def print_pre(self, username):
         if not username:
