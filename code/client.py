@@ -4,6 +4,7 @@ from sys import argv, stdout, exit
 from json import loads
 from time import sleep
 from time import strftime
+from os import system
 
 from threading import Thread
 
@@ -41,8 +42,10 @@ class Client:
             elif res.response == 'info':
                 if res.sender == 'login':
                     sender = res.content
+                    system('clear')
                 elif res.sender == 'logout':
                     sender = ''
+                    system('clear')
                 else:
                     self.print_response(res)
 
