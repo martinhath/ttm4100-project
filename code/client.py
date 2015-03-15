@@ -26,7 +26,7 @@ class Client:
         sender = ''
         while not self.stop:
             self.print_pre(sender)
-            res = self.sock.recv(1024)
+            res = self.sock.recv(10024)
             if res == b'':
                 self.stop = True
                 break
@@ -50,7 +50,7 @@ class Client:
                 self.print_response(res)
 
             elif res.response == 'history':
-                self.print_response(res)
+                self.print_history(res)
 
 
     '''
@@ -91,6 +91,13 @@ class Client:
             username = 'default'
         stdout.write('\r[{:5}] {:14}| '.format(
                 strftime('%H:%M'), username))
+
+    def print_history(self, res):
+        msgs = res.content
+        for m in msgs:
+            r = Response(**m)
+            self.print_response(r)
+
 
     def print_response(self, res):
         print('\r[{:5}] {:14}| {}'.format(

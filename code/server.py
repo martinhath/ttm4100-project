@@ -26,7 +26,6 @@ class RequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
         self.socket = self.request
         self.user = None
-        self.server.sockets.append(self.socket)
 
         while True:
             data = self.request.recv(1024).decode('utf-8')
@@ -71,6 +70,8 @@ class RequestHandler(socketserver.BaseRequestHandler):
         type = request.request
         if type == 'login':
             self.login(request)
+            self.server.sockets.append(self.socket)
+            self.send_log()
         else:
             self.send_login_error()
 
@@ -108,6 +109,7 @@ class RequestHandler(socketserver.BaseRequestHandler):
         self.server.users.remove(self.user)
         self.user = None
         self.broadcast_response(res)
+        self.server.sockets.remove(self.socket)
 
     def names(self):
         '''Håndterer logikk rundt `names`'''
@@ -125,10 +127,12 @@ class RequestHandler(socketserver.BaseRequestHandler):
                               request.content)
         self.broadcast_response(res)
 
-    def create_response(self, sender, response, content):
+    def create_response(self, sender, response, content, time=None):
         '''Lager et Response-objekt basert på parameterene'''
         res = Response()
-        res.timestamp = strftime('%H:%M')
+        if time == None:
+            res.timestamp = strftime('%H:%M')
+        else: res.timestamp = time
         res.sender = sender
         res.response = response
         res.content = content
@@ -136,13 +140,16 @@ class RequestHandler(socketserver.BaseRequestHandler):
 
     def send_response(self, res):
         '''Sender responsen'''
+        d = res.__dict__
+        if res.response == 'history':
+            d['content'] = [c.__dict__ for c in d['content']]
         json = to_json(res.__dict__)
         self.socket.send(json.encode('utf-8'))
 
         self.log(res)
 
     def broadcast_response(self, res):
-        '''Sender responsen til alle'''
+        '''Sender responsen til alle som er logget inn'''
         json = to_json(res.__dict__)
         for s in self.server.sockets:
             try:
@@ -150,8 +157,17 @@ class RequestHandler(socketserver.BaseRequestHandler):
             except Exception as e:
                 self.log(e)
                 self.server.sockets.remove(s)
-
         self.log(res)
+        self.server.messages.append(Message(res.sender,
+            res.content, res.timestamp))
+
+    def send_log(self):
+        msgs = [self.create_response(m.user, 'message', m.message, m.timestamp)\
+                for m in self.server.messages]
+        res = self.create_response('Server',
+                                'history',
+                                msgs)
+        self.send_response(res)
 
     def send_help(self):
         '''Lager og sender hjelpetekst'''
