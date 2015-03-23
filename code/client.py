@@ -27,7 +27,7 @@ class Client:
         sender = ''
         while not self.stop:
             self.print_pre(sender)
-            res = self.sock.recv(10024)
+            res = self.sock.recv(2**20)
             if res == b'':
                 self.stop = True
                 break

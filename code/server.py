@@ -28,7 +28,7 @@ class RequestHandler(socketserver.BaseRequestHandler):
         self.user = None
 
         while True:
-            data = self.request.recv(1024).decode('utf-8')
+            data = self.request.recv(2**20).decode('utf-8')
             try:
                 json = loads(data)
             except ValueError:
@@ -144,7 +144,7 @@ class RequestHandler(socketserver.BaseRequestHandler):
         if res.response == 'history':
             d['content'] = [c.__dict__ for c in d['content']]
         json = to_json(res.__dict__)
-        self.socket.send(json.encode('utf-8'))
+        self.socket.sendall(json.encode('utf-8'))
 
         self.log(res)
 
@@ -153,7 +153,7 @@ class RequestHandler(socketserver.BaseRequestHandler):
         json = to_json(res.__dict__)
         for s in self.server.sockets:
             try:
-                s.send(json.encode('utf-8'))
+                s.sendall(json.encode('utf-8'))
             except Exception as e:
                 self.log(e)
                 self.server.sockets.remove(s)
