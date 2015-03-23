@@ -12,6 +12,8 @@ from pprint import pprint
 
 from models import *
 
+BUFFER_SIZE=1024
+
 class Client:
 
     stop = False
@@ -27,7 +29,11 @@ class Client:
         sender = ''
         while not self.stop:
             self.print_pre(sender)
-            res = self.sock.recv(2**20)
+            res = self.sock.recv(BUFFER_SIZE)
+            while len(res) % BUFFER_SIZE == 0: # kanskje hacky?
+                sleep(0.2)
+                res += self.sock.recv(BUFFER_SIZE)
+
             if res == b'':
                 self.stop = True
                 break
