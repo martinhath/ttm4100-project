@@ -202,6 +202,6 @@ if __name__ == '__main__':
         print('Usage: python server.py <port>')
     else:
         port = int(argv[1])
-        host = '127.0.0.1'
+        host = '0.0.0.0'
         server = ChatServer((host, port), RequestHandler)
         server.serve_forever()
